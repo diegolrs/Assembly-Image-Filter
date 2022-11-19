@@ -12,24 +12,16 @@ includelib \masm32\lib\msvcrt.lib
 include \masm32\macros\macros.asm
 
 .data
- entrada dd 85
+ entrada dd 258
 
 .code
     _Clamp:
         ;Prologo da subrotina --------
         push ebp
         mov ebp, esp
-        sub esp, 12 ;12 bytes reservados para as variáveis locais
-
-        ;min=0
-        mov DWORD PTR[ebp-4], 0
-
-        ;max=255
-        mov DWORD PTR[ebp-8], 255
-
-        ;y=param
+   
+        ;eax=param
         mov eax, DWORD PTR[ebp+8]
-        mov DWORD PTR[ebp-8], eax
 
         _Clamp_Compara:
             cmp eax, 0
@@ -45,12 +37,12 @@ include \masm32\macros\macros.asm
         _Clamp_Maior:
             mov eax, 255
             jmp _Clamp_Compara
-            
+
+        ;Epilogo da subrotina --------   
         _Clamp_Return:
-            ;Epilogo da subrotina --------
             mov esp, ebp
             pop ebp
-            ret 4
+            ret
 
 start:
     push entrada
