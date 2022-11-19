@@ -12,7 +12,7 @@ includelib \masm32\lib\msvcrt.lib
 include \masm32\macros\macros.asm
 
 .data
- entrada dd -25
+ entrada dd 286
 
 .code
     _Clamp:
@@ -24,9 +24,9 @@ include \masm32\macros\macros.asm
         mov eax, DWORD PTR[ebp+8]
 
         _Clamp_Compara:
-            cmp eax, 0
+            cmp eax, 0H
             jl _Clamp_Menor
-            cmp eax, 255
+            cmp eax, 0FFH ;255
             jg _Clamp_Maior
             jmp _Clamp_Return
 
