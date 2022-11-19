@@ -12,7 +12,7 @@ includelib \masm32\lib\msvcrt.lib
 include \masm32\macros\macros.asm
 
 .data
- entrada dd 258
+ entrada dd -25
 
 .code
     _Clamp:
@@ -42,7 +42,7 @@ include \masm32\macros\macros.asm
         _Clamp_Return:
             mov esp, ebp
             pop ebp
-            ret
+            ret 4; desaloca parametro
 
 start:
     push entrada
