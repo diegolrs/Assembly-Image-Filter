@@ -25,13 +25,11 @@ include \masm32\macros\macros.asm
     ;File Buffers
     read_buffer_size dd 1
     original_fileBuffer db 0H
-    b_color_buffer dd 0H
-    g_color_buffer dd 0H
-    r_color_buffer dd 0H
+    bgr_color_buffer dd 3 DUP(0)
 
     ;Filter variables
-    color_index dd 0
-    value_to_add dd 0
+    color_index dd 0H
+    value_to_add dd 0H
 
 .code   
     ;Clampa cor entre 0 e 255
@@ -74,47 +72,62 @@ include \masm32\macros\macros.asm
         ;Ler original
         invoke ReadFile, original_fileHandle, addr original_fileBuffer, 54, addr original_readCount, NULL 
 
-        ;Escreve buffer lido no arquivo cópia
+        ;Escreve buffer lido no arquivo cï¿½pia
         invoke WriteFile, copy_fileHandle, addr original_fileBuffer, 54, addr copy_writeCount, NULL ; Escreve buffer_size bytes do arquivo
 
         ;Epilogo da subrotina --------
         mov esp, ebp
         pop ebp
-        ret ; retorn void
+        ret 4; retorn void
+
+    ;Filtra pixel
+    ;params: endereço brg, index da banda para operar, valor a adicionar
+    _FilterPixel:
+        ;Prologo da subrotina --------
+        push ebp
+        mov ebp, esp
+        sub esp, 12
+
+        ;x = valor a adicionar
+        mov eax, DWORD PTR[ebp+8]
+        mov DWORD PTR[ebp-4], eax
+
+        ;y = index para operar
+        mov eax, DWORD PTR[ebp+12]
+        mov DWORD PTR[ebp-8], eax
+
+        ;z = endereço brg
+        mov eax, DWORD PTR[ebp+16]
+
+
+        mov ecx, DWORD PTR[ebp-8] ; ecx = index
+        mov ebx, DWORD PTR[ebp+16+ecx] ; ebx = z[index]
+        add ebx, DWORD PTR[ebp-4] ; ebx += x
+        mov DWORD PTR[ebp+16+ecx], ebx ; z[index] = ebx
+        
+
+        ;Epilogo da subrotina --------
+        mov esp, ebp
+        pop ebp
+        ret 12; remove parametros da função
 
     ;Filtra a imagem
     _FilterImage:
         ;Prologo da subrotina --------
         push ebp
         mov ebp, esp
+
+        mov ebx, value_to_add ; aloca valor a ser incrementado em ebx
         
         _FilterImage_Loop:
-            invoke ReadFile, original_fileHandle, addr b_color_buffer, 1, addr original_readCount, NULL ;Ler banda B
-            invoke ReadFile, original_fileHandle, addr g_color_buffer, 1, addr original_readCount, NULL ;Ler banda G
-            invoke ReadFile, original_fileHandle, addr r_color_buffer, 1, addr original_readCount, NULL ;Ler banda R  
+            invoke ReadFile, original_fileHandle, addr bgr_color_buffer, 3, addr original_readCount, NULL ;Ler banda BGR
 
-            jmp _FilterImage_Loop_WriteBGR
-
-            cmp color_index, 0
-            je _FilterImage_Loop_AddToB
-            cmp color_index, 1
-            je _FilterImage_Loop_AddToG
-            cmp color_index, 2
-            je _FilterImage_Loop_AddToR
-
-            _FilterImage_Loop_AddToB:
-                jmp _FilterImage_Loop_WriteBGR
+            push bgr_color_buffer
+            push 0 ; index
+            push 0 ; valor pra add
+            call _FilterPixel
                 
-            _FilterImage_Loop_AddToG:
-                jmp _FilterImage_Loop_WriteBGR
-
-            _FilterImage_Loop_AddToR:
-                jmp _FilterImage_Loop_WriteBGR
-                
-            _FilterImage_Loop_WriteBGR:
-                invoke WriteFile, copy_fileHandle, addr b_color_buffer, 1, addr copy_writeCount, NULL ; Escreve banda B no arquivo 
-                invoke WriteFile, copy_fileHandle, addr g_color_buffer, 1, addr copy_writeCount, NULL ; Escreve banda G no arquivo 
-                invoke WriteFile, copy_fileHandle, addr r_color_buffer, 1, addr copy_writeCount, NULL ; Escreve banda R no arquivo                  
+            invoke WriteFile, copy_fileHandle, addr bgr_color_buffer, 3, addr copy_writeCount, NULL ; Escreve banda BGR no arquivo         
 
             ;Verifica EOF ---------
             cmp original_readCount, 0
@@ -122,18 +135,20 @@ include \masm32\macros\macros.asm
 
             jne _FilterImage_Loop
 
-        ;Epilogo da subrotina --------
+        
         _FilterImage_Return:
+            pop ebx
+            ;Epilogo da subrotina --------
             mov esp, ebp
             pop ebp
-            ret ; retorn void
+            ret 4; desaloca parametros
         
 start:
     ; Abre arquivo original em depois solicita modo leitura ----------
     invoke CreateFile, addr original_fileName, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL
     mov original_fileHandle, eax    
 
-    ; Abre arquivo cópia em modo escrever ----------
+    ; Abre arquivo cï¿½pia em modo escrever ----------
     invoke CreateFile, addr copy_fileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL
     mov copy_fileHandle, eax
 
@@ -143,5 +158,6 @@ start:
     _Exit_Program:
         ; Fecha os arquivos
         invoke CloseHandle, original_fileHandle
-        invoke CloseHandle, copy_fileHandle
+        invoke CloseHandle, copy_fileHandle    
+        invoke ExitProcess, 0
 end start
