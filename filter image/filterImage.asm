@@ -25,13 +25,13 @@ include \masm32\macros\macros.asm
     ;File Buffers
     read_buffer_size dd 1
     original_fileBuffer db 0H
-    r_color_buffer dd 0H
-    g_color_buffer dd 0H
     b_color_buffer dd 0H
+    g_color_buffer dd 0H
+    r_color_buffer dd 0H
 
     ;Filter variables
     color_index dd 0
-    value_to_add dd 50
+    value_to_add dd 0
 
 .code   
     ;Clampa cor entre 0 e 255
@@ -89,14 +89,34 @@ include \masm32\macros\macros.asm
         mov ebp, esp
         
         _FilterImage_Loop:
-            invoke ReadFile, original_fileHandle, addr r_color_buffer, 1, addr original_readCount, NULL ;Ler banda B
-            invoke WriteFile, copy_fileHandle, addr r_color_buffer, 1, addr copy_writeCount, NULL ; Escreve banda B no arquivo 
+            invoke ReadFile, original_fileHandle, addr b_color_buffer, 1, addr original_readCount, NULL ;Ler banda B
             invoke ReadFile, original_fileHandle, addr g_color_buffer, 1, addr original_readCount, NULL ;Ler banda G
-            invoke WriteFile, copy_fileHandle, addr g_color_buffer, 1, addr copy_writeCount, NULL ; Escreve banda G no arquivo 
-            invoke ReadFile, original_fileHandle, addr b_color_buffer, 1, addr original_readCount, NULL ;Ler banda R
-            invoke WriteFile, copy_fileHandle, addr b_color_buffer, 1, addr copy_writeCount, NULL ; Escreve banda R no arquivo             
+            invoke ReadFile, original_fileHandle, addr r_color_buffer, 1, addr original_readCount, NULL ;Ler banda R  
 
-            ;Verifica EOF
+            jmp _FilterImage_Loop_WriteBGR
+
+            cmp color_index, 0
+            je _FilterImage_Loop_AddToB
+            cmp color_index, 1
+            je _FilterImage_Loop_AddToG
+            cmp color_index, 2
+            je _FilterImage_Loop_AddToR
+
+            _FilterImage_Loop_AddToB:
+                jmp _FilterImage_Loop_WriteBGR
+                
+            _FilterImage_Loop_AddToG:
+                jmp _FilterImage_Loop_WriteBGR
+
+            _FilterImage_Loop_AddToR:
+                jmp _FilterImage_Loop_WriteBGR
+                
+            _FilterImage_Loop_WriteBGR:
+                invoke WriteFile, copy_fileHandle, addr b_color_buffer, 1, addr copy_writeCount, NULL ; Escreve banda B no arquivo 
+                invoke WriteFile, copy_fileHandle, addr g_color_buffer, 1, addr copy_writeCount, NULL ; Escreve banda G no arquivo 
+                invoke WriteFile, copy_fileHandle, addr r_color_buffer, 1, addr copy_writeCount, NULL ; Escreve banda R no arquivo                  
+
+            ;Verifica EOF ---------
             cmp original_readCount, 0
             je _FilterImage_Return
 

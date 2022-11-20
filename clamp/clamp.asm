@@ -12,7 +12,7 @@ includelib \masm32\lib\msvcrt.lib
 include \masm32\macros\macros.asm
 
 .data
- entrada dd 286
+ entrada dd 75
 
 .code
     _Clamp:
