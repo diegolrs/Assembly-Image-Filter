@@ -26,7 +26,8 @@ include \masm32\macros\macros.asm
     read_buffer_size dd 1
     original_fileBuffer db 0H
     bgr_color_buffer dd 3 DUP(0)
-
+    bgr_color_ptr dd OFFSET bgr_color_buffer
+    
     ;Filter variables
     color_index dd 0H
     value_to_add dd 0H
@@ -72,13 +73,13 @@ include \masm32\macros\macros.asm
         ;Ler original
         invoke ReadFile, original_fileHandle, addr original_fileBuffer, 54, addr original_readCount, NULL 
 
-        ;Escreve buffer lido no arquivo cï¿½pia
+        ;Escreve buffer lido no arquivo copia
         invoke WriteFile, copy_fileHandle, addr original_fileBuffer, 54, addr copy_writeCount, NULL ; Escreve buffer_size bytes do arquivo
 
         ;Epilogo da subrotina --------
         mov esp, ebp
         pop ebp
-        ret 4; retorn void
+        ret; 4; retorn void
 
     ;Filtra pixel
     ;params: endereço brg, index da banda para operar, valor a adicionar
@@ -98,12 +99,16 @@ include \masm32\macros\macros.asm
 
         ;z = endereço brg
         mov eax, DWORD PTR[ebp+16]
+        mov eax, [eax]
+        mov DWORD PTR[ebp-12], eax
 
+        add eax, 50
+        mov eax, DWORD PTR[ebp+16]
 
-        mov ecx, DWORD PTR[ebp-8] ; ecx = index
-        mov ebx, DWORD PTR[ebp+16+ecx] ; ebx = z[index]
-        add ebx, DWORD PTR[ebp-4] ; ebx += x
-        mov DWORD PTR[ebp+16+ecx], ebx ; z[index] = ebx
+        ;mov ecx, DWORD PTR[ebp-8] ; ecx = index
+        ;mov ebx, DWORD PTR[ebp+16+ecx] ; ebx = z[index]
+        ;add ebx, DWORD PTR[ebp-4] ; ebx += x
+        ;mov DWORD PTR[ebp+16+ecx], ebx ; z[index] = ebx
         
 
         ;Epilogo da subrotina --------
@@ -122,9 +127,9 @@ include \masm32\macros\macros.asm
         _FilterImage_Loop:
             invoke ReadFile, original_fileHandle, addr bgr_color_buffer, 3, addr original_readCount, NULL ;Ler banda BGR
 
-            push bgr_color_buffer
+            push offset bgr_color_buffer
             push 0 ; index
-            push 0 ; valor pra add
+            push 50 ; valor pra add
             call _FilterPixel
                 
             invoke WriteFile, copy_fileHandle, addr bgr_color_buffer, 3, addr copy_writeCount, NULL ; Escreve banda BGR no arquivo         
