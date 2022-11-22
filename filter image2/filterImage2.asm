@@ -29,8 +29,8 @@ include \masm32\macros\macros.asm
     bgr_color_ptr dd OFFSET bgr_color_buffer
     
     ;Filter variables
-    color_index dd 0H
-    value_to_add dd 0H
+    ;color_index dd 1
+    ;value_to_add dd 0H
 
 .code   
     ;Clampa cor entre 0 e 255
@@ -39,15 +39,16 @@ include \masm32\macros\macros.asm
         ;Prologo da subrotina --------
         push ebp
         mov ebp, esp
-   
+
         ;eax=param
+        xor eax, eax
         mov eax, DWORD PTR[ebp+8]
 
         _Clamp_Compara:
-            cmp al, 0H
-            jb _Clamp_Menor
-            cmp al, 0FFH ; 255
-            ja _Clamp_Maior
+            cmp eax, 0H
+            jle _Clamp_Menor
+            cmp eax, 0FFH ; 255
+            jge _Clamp_Maior
             jmp _Clamp_Return
 
         _Clamp_Menor:
@@ -55,6 +56,7 @@ include \masm32\macros\macros.asm
             jmp _Clamp_Return
 
         _Clamp_Maior:
+            xor eax, eax
             mov eax, 0FFH ; 255
 
         ;Epilogo da subrotina --------   
@@ -79,7 +81,8 @@ include \masm32\macros\macros.asm
         ;Epilogo da subrotina --------
         mov esp, ebp
         pop ebp
-        ret; 4; retorn void
+        ret ; return void
+
 
     ;Filtra pixel
     ;params: endereço brg, index da banda para operar, valor a adicionar
@@ -96,37 +99,79 @@ include \masm32\macros\macros.asm
         ;y = index para operar
         mov eax, DWORD PTR[ebp+12]
         mov DWORD PTR[ebp-8], eax
-        mov ecx, eax
 
         ;z = endereço brg
         mov eax, DWORD PTR[ebp+16]
-        ;mov eax, [eax]
         mov DWORD PTR[ebp-12], eax
+        mov ecx, DWORD PTR[ebp-12]
 
-        ;TODO: CONSERTAR ESSA ABA *******
+        ;R Value
+        mov eax, [ecx][2]
+        push eax
+
+        ;G Value
+        mov eax, [ecx][1]
+        push eax
+
+        ;B Value
+        mov eax, [ecx][0]
+        push eax
+
+        ;Add to color
+        xor edx, edx ; edx = 0
+        mov eax, [ecx][0]
+        xor ah, ah ; ah = 0
+        add eax, DWORD PTR[ebp-4]
+
+        ;Clamp color
+        cmp ah, 0
+        je _eend 
+        xor ah, ah
+        mov al, 255
+
+        ;add eax, DWORD PTR[ebp-4]
+        ;push eax
+        ;call _Clamp
+
+        _eend:
+        xor edx, edx
+        mov edx, eax
 
         ;----------- Pegando valor no endereco e modificando --------------
-        mov eax, DWORD PTR[ebp+16] ; x = param[ecx]
-        mov eax, [eax] ; resgatando valor no endereço
+        cmp DWORD PTR[ebp-8], 0
+        je Filter_Blue
+        cmp DWORD PTR[ebp-8], 1 ; Comparando index
+        je Filter_Green
+        cmp DWORD PTR[ebp-8], 2
+        je Filter_Red
 
-        invoke atodw, DWORD PTR[ebp-12] ; salva em eax a conversao 
-        add eax, 0 ; soma com valor constante
-        invoke dwtoa, eax, DWORD PTR[ebp-12]
-
-
-        mov ebx, [ebp+8] ; ponteiro de pointeiro
-        mov DWORD PTR[ebx], eax ; colocando valor indiretamente
+        Filter_Blue:
+            pop eax
+            mov DWORD PTR[ecx], edx ; B
+            pop eax
+            mov DWORD PTR[ecx+1], eax ; G
+            pop eax
+            mov DWORD PTR[ecx+2], eax ; R
+            jmp _FilterPixel_Return
+        Filter_Green:
+            pop eax
+            mov DWORD PTR[ecx], eax ; B
+            pop eax
+            mov DWORD PTR[ecx+1], edx ; G
+            pop eax
+            mov DWORD PTR[ecx+2], eax ; R
+            jmp _FilterPixel_Return
+        Filter_Red:
+            pop eax
+            mov DWORD PTR[ecx], eax ; B
+            pop eax
+            mov DWORD PTR[ecx+1], eax ; G
+            pop eax
+            mov DWORD PTR[ecx+2], edx ; R
+            jmp _FilterPixel_Return
         ;-------------------------------------------------------------------
-
-        ;add eax, 50
-        ;mov eax, DWORD PTR[ebp+16]
-
-        ;mov ecx, DWORD PTR[ebp-8] ; ecx = index
-        ;mov ebx, DWORD PTR[ebp+16+ecx] ; ebx = z[index]
-        ;add ebx, DWORD PTR[ebp-4] ; ebx += x
-        ;mov DWORD PTR[ebp+16+ecx], ebx ; z[index] = ebx
         
-
+        _FilterPixel_Return:
         ;Epilogo da subrotina --------
         mov esp, ebp
         pop ebp
@@ -137,69 +182,16 @@ include \masm32\macros\macros.asm
         ;Prologo da subrotina --------
         push ebp
         mov ebp, esp
-
-        mov ebx, value_to_add ; aloca valor a ser incrementado em ebx
               
         _FilterImage_Loop:
             invoke ReadFile, original_fileHandle, addr bgr_color_buffer, 3, addr original_readCount, NULL ;Ler banda BGR
-            
-            mov ecx, offset bgr_color_buffer
-            
-            ;R Value
-            mov eax, [ecx][2]
-            push eax
 
-            ;G Value
-            mov eax, [ecx][1]
-            push eax
-
-            ;B Value
-            mov eax, [ecx][0]
-            push eax
-
-            push eax
-            call _Clamp
-            mov edx, eax
-
-            ;push offset bgr_color_buffer
-            ;push 0 ; index
-            ;push 50 ; valor pra add
-            ;call _FilterPixel
-
-            cmp color_index, 0
-            je Filter_Blue
-            cmp color_index, 1
-            je Filter_Green
-            cmp color_index, 2
-            je Filter_Red
-
-            Filter_Blue:
-                pop eax
-                mov DWORD PTR[ecx], edx ; B
-                pop eax
-                mov DWORD PTR[ecx+1], eax ; G
-                pop eax
-                mov DWORD PTR[ecx+2], eax ; R
-                jmp Write_Data
-            Filter_Green:
-                pop eax
-                mov DWORD PTR[ecx], eax ; B
-                pop eax
-                mov DWORD PTR[ecx+1], edx ; G
-                pop eax
-                mov DWORD PTR[ecx+2], eax ; R
-                jmp Write_Data
-            Filter_Red:
-                pop eax
-                mov DWORD PTR[ecx], eax ; B
-                pop eax
-                mov DWORD PTR[ecx+1], eax ; G
-                pop eax
-                mov DWORD PTR[ecx+2], edx ; R
-                jmp Write_Data
+            push offset bgr_color_buffer
+            push 0 ; index
+            push 50 ; valor pra add
+            call _FilterPixel
              
-            Write_Data:    
-                invoke WriteFile, copy_fileHandle, addr bgr_color_buffer, 3, addr copy_writeCount, NULL ; Escreve banda BGR no arquivo         
+            invoke WriteFile, copy_fileHandle, addr bgr_color_buffer, 3, addr copy_writeCount, NULL ; Escreve banda BGR no arquivo         
 
             ;Verifica EOF ---------
             cmp original_readCount, 0
