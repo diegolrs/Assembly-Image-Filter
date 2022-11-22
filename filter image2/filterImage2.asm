@@ -14,12 +14,12 @@ include \masm32\macros\macros.asm
 .data
     ;Read file variables
     original_fileHandle dd 0H
-    original_fileName db "catita.BMP", 0H
+    original_fileName db "catita.bmp", 0H
     original_readCount dd 0H
 
     ;Write file variables
     copy_fileHandle dd 0H
-    copy_fileName db "catita2.BMP", 0H
+    copy_fileName db "catita2.bmp", 0H
     copy_writeCount dd 0H
 
     ;File Buffers
@@ -31,6 +31,11 @@ include \masm32\macros\macros.asm
     ;Filter variables
     ;color_index dd 1
     ;value_to_add dd 0H
+
+
+    output db "Hello World!", 0ah, 0h
+    outputHandle dd 0 ; Variavel para armazenar o handle de saida
+    write_count dd 0; Variavel para armazenar caracteres escritos na console
 
 .code   
     ;Clampa cor entre 0 e 255
@@ -116,21 +121,26 @@ include \masm32\macros\macros.asm
 
 
         ;----- Pegando valor no index para clampar -------
-        
-        ; if(index == 0)
-        cmp DWORD PTR[ebp-8], 0
-        mov eax, [ecx][0]
-        jmp _FilterPixel_AddValue
 
-        ; if(index == 1)
+        cmp DWORD PTR[ebp-8], 0 
+        je _FilterPixel_OnIndexEquals0 ; quando index == 0
         cmp DWORD PTR[ebp-8], 1
-        mov eax, [ecx][1]
-        jmp _FilterPixel_AddValue
-
-        ; if(index == 2)
+        je _FilterPixel_OnIndexEquals1 ; quando index == 1
         cmp DWORD PTR[ebp-8], 2
-        mov eax, [ecx][2]
-        jmp _FilterPixel_AddValue
+        je _FilterPixel_OnIndexEquals2 ; quando index == 2
+
+        
+        _FilterPixel_OnIndexEquals0:
+            mov eax, [ecx][0]
+            jmp _FilterPixel_AddValue
+
+        _FilterPixel_OnIndexEquals1:
+            mov eax, [ecx][1]
+            jmp _FilterPixel_AddValue
+
+        _FilterPixel_OnIndexEquals2:           
+            mov eax, [ecx][2]
+            jmp _FilterPixel_AddValue
 
         ;Add value to color and clamp -----------
         _FilterPixel_AddValue:
@@ -193,7 +203,7 @@ include \masm32\macros\macros.asm
             invoke ReadFile, original_fileHandle, addr bgr_color_buffer, 3, addr original_readCount, NULL ;Ler banda BGR
 
             push offset bgr_color_buffer
-            push 2 ; index
+            push 0 ; index
             push 50 ; valor pra add
             call _FilterPixel
              
