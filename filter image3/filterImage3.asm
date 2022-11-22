@@ -27,9 +27,8 @@ include myIO.inc
 
     ;File Buffers
     read_buffer_size dd 1H
-    original_fileBuffer db 0H
+    original_fileBuffer db 54 dup(0)
     bgr_color_buffer byte 3 DUP(0)
-    bgr_color_ptr dd OFFSET bgr_color_buffer
     
     ;Core variables
     color_index dd 1H
@@ -195,9 +194,7 @@ include myIO.inc
             ;Verifica EOF ---------
             cmp original_readCount, 0
             je _FilterImage_Return
-
             jne _FilterImage_Loop
-
         
         _FilterImage_Return:
             pop ebx
@@ -268,12 +265,9 @@ start:
     ; Abre foto copia e solicita modo escrever ----------
     invoke CreateFile, addr copy_name, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL
     mov copy_fileHandle, eax
-
-    push color_index
-    push value_to_add    
+  
     call _CopyFirst54Bytes
-    pop value_to_add
-    pop color_index  
+    printf("\n\ndepois: %d\n\n", value_to_add)   
 
     push offset bgr_color_buffer
     push color_index
