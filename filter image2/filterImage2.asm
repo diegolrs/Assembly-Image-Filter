@@ -34,6 +34,7 @@ include \masm32\macros\macros.asm
 
 .code   
     ;Clampa cor entre 0 e 255
+    ;Nota: modifica o registrador EAX
     _Clamp:
         ;Prologo da subrotina --------
         push ebp
@@ -43,26 +44,25 @@ include \masm32\macros\macros.asm
         mov eax, DWORD PTR[ebp+8]
 
         _Clamp_Compara:
-            cmp eax, 0H
-            jl _Clamp_Menor
-            cmp eax, 0FFH ;255
-            jg _Clamp_Maior
+            cmp al, 0H
+            jb _Clamp_Menor
+            cmp al, 0FFH ; 255
+            ja _Clamp_Maior
             jmp _Clamp_Return
 
         _Clamp_Menor:
             xor eax, eax ;eax = 0
-            jmp _Clamp_Compara
+            jmp _Clamp_Return
 
         _Clamp_Maior:
-            mov eax, 255
-            jmp _Clamp_Compara
+            mov eax, 0FFH ; 255
 
         ;Epilogo da subrotina --------   
         _Clamp_Return:
             mov esp, ebp
             pop ebp
             ret 4; desaloca parametro
-            
+
 
     ;Copia primeiros 54 bytes da imagem
     _CopyFirst54Bytes:
@@ -139,16 +139,67 @@ include \masm32\macros\macros.asm
         mov ebp, esp
 
         mov ebx, value_to_add ; aloca valor a ser incrementado em ebx
-        
+              
         _FilterImage_Loop:
             invoke ReadFile, original_fileHandle, addr bgr_color_buffer, 3, addr original_readCount, NULL ;Ler banda BGR
+            
+            mov ecx, offset bgr_color_buffer
+            
+            ;R Value
+            mov eax, [ecx][2]
+            push eax
 
-            push offset bgr_color_buffer
-            push 0 ; index
-            push 50 ; valor pra add
-            call _FilterPixel
-                
-            invoke WriteFile, copy_fileHandle, addr bgr_color_buffer, 3, addr copy_writeCount, NULL ; Escreve banda BGR no arquivo         
+            ;G Value
+            mov eax, [ecx][1]
+            push eax
+
+            ;B Value
+            mov eax, [ecx][0]
+            push eax
+
+            push eax
+            call _Clamp
+            mov edx, eax
+
+            ;push offset bgr_color_buffer
+            ;push 0 ; index
+            ;push 50 ; valor pra add
+            ;call _FilterPixel
+
+            cmp color_index, 0
+            je Filter_Blue
+            cmp color_index, 1
+            je Filter_Green
+            cmp color_index, 2
+            je Filter_Red
+
+            Filter_Blue:
+                pop eax
+                mov DWORD PTR[ecx], edx ; B
+                pop eax
+                mov DWORD PTR[ecx+1], eax ; G
+                pop eax
+                mov DWORD PTR[ecx+2], eax ; R
+                jmp Write_Data
+            Filter_Green:
+                pop eax
+                mov DWORD PTR[ecx], eax ; B
+                pop eax
+                mov DWORD PTR[ecx+1], edx ; G
+                pop eax
+                mov DWORD PTR[ecx+2], eax ; R
+                jmp Write_Data
+            Filter_Red:
+                pop eax
+                mov DWORD PTR[ecx], eax ; B
+                pop eax
+                mov DWORD PTR[ecx+1], eax ; G
+                pop eax
+                mov DWORD PTR[ecx+2], edx ; R
+                jmp Write_Data
+             
+            Write_Data:    
+                invoke WriteFile, copy_fileHandle, addr bgr_color_buffer, 3, addr copy_writeCount, NULL ; Escreve banda BGR no arquivo         
 
             ;Verifica EOF ---------
             cmp original_readCount, 0
@@ -162,20 +213,20 @@ include \masm32\macros\macros.asm
             ;Epilogo da subrotina --------
             mov esp, ebp
             pop ebp
-            ret 4; desaloca parametros
+            ret; desaloca parametros
         
 start:
     ; Abre arquivo original em depois solicita modo leitura ----------
     invoke CreateFile, addr original_fileName, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL
     mov original_fileHandle, eax    
 
-    ; Abre arquivo c�pia em modo escrever ----------
+    ; Abre arquivo copia em modo escrever ----------
     invoke CreateFile, addr copy_fileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL
     mov copy_fileHandle, eax
 
     call _CopyFirst54Bytes
     call _FilterImage
-        
+
     _Exit_Program:
         ; Fecha os arquivos
         invoke CloseHandle, original_fileHandle
