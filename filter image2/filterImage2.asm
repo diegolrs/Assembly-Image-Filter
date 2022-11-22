@@ -44,20 +44,17 @@ include \masm32\macros\macros.asm
         xor eax, eax
         mov eax, DWORD PTR[ebp+8]
 
-        _Clamp_Compara:
-            cmp eax, 0H
-            jle _Clamp_Menor
-            cmp eax, 0FFH ; 255
-            jge _Clamp_Maior
-            jmp _Clamp_Return
+        ; verifica se tem algum digito diferente de zero nos 8 bits depois de 255
+        cmp ah, 0 
+        jne _Clamp_Max 
+        
+        ; como nao ha digito diferente de zero nos primeiros 8 bits mas significantes, o numero eh menor ou igual a 255
+        jmp _Clamp_Return
 
-        _Clamp_Menor:
-            xor eax, eax ;eax = 0
-            jmp _Clamp_Return
-
-        _Clamp_Maior:
+        ;Coloca valor maximo (255) no registrador -----
+        _Clamp_Max:
             xor eax, eax
-            mov eax, 0FFH ; 255
+            mov al, 255        
 
         ;Epilogo da subrotina --------   
         _Clamp_Return:
@@ -117,33 +114,42 @@ include \masm32\macros\macros.asm
         mov eax, [ecx][0]
         push eax
 
-        ;Add to color
-        xor edx, edx ; edx = 0
+
+        ;----- Pegando valor no index para clampar -------
+        
+        ; if(index == 0)
+        cmp DWORD PTR[ebp-8], 0
         mov eax, [ecx][0]
-        xor ah, ah ; ah = 0
-        add eax, DWORD PTR[ebp-4]
+        jmp _FilterPixel_AddValue
 
-        ;Clamp color
-        cmp ah, 0
-        je _eend 
-        xor ah, ah
-        mov al, 255
+        ; if(index == 1)
+        cmp DWORD PTR[ebp-8], 1
+        mov eax, [ecx][1]
+        jmp _FilterPixel_AddValue
 
-        ;add eax, DWORD PTR[ebp-4]
-        ;push eax
-        ;call _Clamp
+        ; if(index == 2)
+        cmp DWORD PTR[ebp-8], 2
+        mov eax, [ecx][2]
+        jmp _FilterPixel_AddValue
 
-        _eend:
-        xor edx, edx
-        mov edx, eax
+        ;Add value to color and clamp -----------
+        _FilterPixel_AddValue:
+            xor ah, ah ; ah = 0
+            add eax, DWORD PTR[ebp-4]
+
+        _FilterPixel_Clamp:
+            ;Clamp color
+            push eax
+            call _Clamp
+            mov edx, eax
 
         ;----------- Pegando valor no endereco e modificando --------------
         cmp DWORD PTR[ebp-8], 0
         je Filter_Blue
         cmp DWORD PTR[ebp-8], 1 ; Comparando index
         je Filter_Green
-        cmp DWORD PTR[ebp-8], 2
-        je Filter_Red
+        cmp DWORD PTR[ebp-8], 2 ; 
+        jmp Filter_Red
 
         Filter_Blue:
             pop eax
@@ -187,7 +193,7 @@ include \masm32\macros\macros.asm
             invoke ReadFile, original_fileHandle, addr bgr_color_buffer, 3, addr original_readCount, NULL ;Ler banda BGR
 
             push offset bgr_color_buffer
-            push 0 ; index
+            push 2 ; index
             push 50 ; valor pra add
             call _FilterPixel
              
