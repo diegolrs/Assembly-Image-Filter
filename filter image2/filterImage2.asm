@@ -11,6 +11,9 @@ includelib \masm32\lib\masm32.lib
 includelib \masm32\lib\msvcrt.lib
 include \masm32\macros\macros.asm
 
+;Bibliotecas criadas 
+include clamp.inc
+
 .data
     ;Read file variables
     original_fileHandle dd 0H
@@ -32,42 +35,7 @@ include \masm32\macros\macros.asm
     color_index dd 1H
     value_to_add dd 0H
 
-
-    output db "Hello World!", 0AH, 0H
-    outputHandle dd 0H ; Variavel para armazenar o handle de saida
-    write_count dd 0H ; Variavel para armazenar caracteres escritos na console
-
 .code   
-    ;Clampa cor entre 0 e 255
-    ;Nota: modifica o registrador EAX
-    _Clamp:
-        ;Prologo da subrotina --------
-        push ebp
-        mov ebp, esp
-
-        ;eax=param
-        xor eax, eax
-        mov eax, DWORD PTR[ebp+8]
-
-        ; verifica se tem algum digito diferente de zero nos 8 bits depois de 255
-        cmp ah, 0H 
-        jne _Clamp_Max 
-        
-        ; como nao ha digito diferente de zero nos primeiros 8 bits mas significantes, o numero eh menor ou igual a 255
-        jmp _Clamp_Return
-
-        ;Coloca valor maximo (255) no registrador -----
-        _Clamp_Max:
-            xor eax, eax
-            mov al, 0FFH ; 255        
-
-        ;Epilogo da subrotina --------   
-        _Clamp_Return:
-            mov esp, ebp
-            pop ebp
-            ret 4; desaloca parametro
-
-
     ;Copia primeiros 54 bytes da imagem
     _CopyFirst54Bytes:
         ;Prologo da subrotina --------
