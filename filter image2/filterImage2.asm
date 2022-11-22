@@ -23,19 +23,19 @@ include \masm32\macros\macros.asm
     copy_writeCount dd 0H
 
     ;File Buffers
-    read_buffer_size dd 1
+    read_buffer_size dd 1H
     original_fileBuffer db 0H
     bgr_color_buffer byte 3 DUP(0)
     bgr_color_ptr dd OFFSET bgr_color_buffer
     
     ;Filter variables
-    ;color_index dd 1
-    ;value_to_add dd 0H
+    color_index dd 1H
+    value_to_add dd 0H
 
 
-    output db "Hello World!", 0ah, 0h
-    outputHandle dd 0 ; Variavel para armazenar o handle de saida
-    write_count dd 0; Variavel para armazenar caracteres escritos na console
+    output db "Hello World!", 0AH, 0H
+    outputHandle dd 0H ; Variavel para armazenar o handle de saida
+    write_count dd 0H ; Variavel para armazenar caracteres escritos na console
 
 .code   
     ;Clampa cor entre 0 e 255
@@ -50,7 +50,7 @@ include \masm32\macros\macros.asm
         mov eax, DWORD PTR[ebp+8]
 
         ; verifica se tem algum digito diferente de zero nos 8 bits depois de 255
-        cmp ah, 0 
+        cmp ah, 0H 
         jne _Clamp_Max 
         
         ; como nao ha digito diferente de zero nos primeiros 8 bits mas significantes, o numero eh menor ou igual a 255
@@ -59,7 +59,7 @@ include \masm32\macros\macros.asm
         ;Coloca valor maximo (255) no registrador -----
         _Clamp_Max:
             xor eax, eax
-            mov al, 255        
+            mov al, 0FFH ; 255        
 
         ;Epilogo da subrotina --------   
         _Clamp_Return:
@@ -123,16 +123,11 @@ include \masm32\macros\macros.asm
         ;----- Pegando valor no index para clampar -------
 
         cmp DWORD PTR[ebp-8], 0 
-        je _FilterPixel_OnIndexEquals0 ; quando index == 0
+        je _FilterPixel_AddValue ; quando index == 0, nao precisa configurar nada, pois valor do index zero ja esta em eax
         cmp DWORD PTR[ebp-8], 1
         je _FilterPixel_OnIndexEquals1 ; quando index == 1
         cmp DWORD PTR[ebp-8], 2
         je _FilterPixel_OnIndexEquals2 ; quando index == 2
-
-        
-        _FilterPixel_OnIndexEquals0:
-            mov eax, [ecx][0]
-            jmp _FilterPixel_AddValue
 
         _FilterPixel_OnIndexEquals1:
             mov eax, [ecx][1]
