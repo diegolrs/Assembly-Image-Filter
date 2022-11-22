@@ -8,41 +8,88 @@ include \masm32\include\masm32.inc
 includelib \masm32\lib\kernel32.lib
 includelib \masm32\lib\masm32.lib 
 
-include remove_cr.inc
+include remove-cr.inc
+include console-messages.inc
 
 .data
-inputString db 50 dup(0)
-outputString db 50 dup(0)
-inputHandle dd 0 ; Variavel para armazenar o handle de entradada
-console_count dd 0 ; Variavel para armazenar caracteres lidos/escritos na console
-tamanho_string dd 0 ; Variavel para armazenar tamanho de string terminada em 0
-tamanho_out_string dd 0 ; Variavel para armazenar tamanho de string terminada em 0
-integer1 dd 0
-
-;Mensagens -------------------------
-msg_nome_arquivo db "Insira o nome do arquivo de saida (ex: catita2.bmp): ", 0H
-msg_index_cor db "Insira o index da banda BGR para alterar (B=0, G=1, R=2): ",  0H
-msg_qtd_add db "Insira a quantidade a adicionar na banda [0, 255]: ", 0H
-tamanho_msg dd 0 ; Variavel para armazenar tamanho da string de mensagem terminada em 0
-
-;Variaveis ----------------------------
+;Console variables -------
+inputInteger db 50 dup(0)
 console_write_count dd 0 ; Variavel para armazenar caracteres lidos/escritos na console
-outputHandle dd 0 ; Variavel para armazenar o handle de saida
 write_count dd 0; Variavel para armazenar caracteres escritos na console
 
+;Console handlers ----
+inputHandle dd 0 ; Variavel para armazenar o handle de entrada
+outputHandle dd 0 ; Variavel para armazenar o handle de saida
+console_count dd 0 ; Variavel para armazenar caracteres lidos/escritos na console
 
-;Usados
-inputInteger db 50 dup(0)
-
-;Variaveis
-nome_do_arquivo db 50 dup(0)
+;Variaveis ----------
+buffer_NomeDoArquivo db 50 dup(0)
 index_selecionado dd 0H
 valor_para_adicionar dd 0H
 
-
 .code
+_SetupIO:
+    ;Prologo da subrotina --------
+    push ebp
+    mov ebp, esp
+    
+    ;Configurando streams -----
+    invoke GetStdHandle, STD_INPUT_HANDLE
+    mov inputHandle, eax
+    invoke GetStdHandle, STD_OUTPUT_HANDLE
+    mov outputHandle, eax  
 
-_RequestInteger:
+    ;Epilogo da subrotina --------   
+    mov esp, ebp
+    pop ebp
+    ret
+
+; Printa mensagem no console --------
+; param: offset string
+; Nota: modifica registrador EAX
+_LogMessage:
+    ;Prologo da subrotina --------
+    push ebp
+    mov ebp, esp
+    sub esp, 4
+
+    ;endereco da string passada
+    mov eax, DWORD PTR[ebp+8]
+    mov DWORD PTR[ebp-4], eax
+    
+    invoke StrLen, DWORD PTR[ebp-4]
+    invoke WriteConsole, outputHandle, DWORD PTR[ebp-4], eax, addr console_count, NULL
+
+    ;Epilogo da subrotina --------   
+    mov esp, ebp
+    pop ebp
+    ret 4 ; retorna e desimpilha parametro local criado
+    
+
+; Recebe e trata entrada do console --------
+; param: offset string, string size
+; Nota: modifica registradores EAX e ESI
+_ReadString:
+    ;Prologo da subrotina --------
+    push ebp
+    mov ebp, esp
+ 
+    invoke ReadConsole, inputHandle, DWORD PTR[ebp+8], DWORD PTR[ebp+12], addr console_count, NULL
+
+    mov eax, DWORD PTR[ebp+8]
+    push eax
+    call _RemoveCarriageReturn
+
+    ;Epilogo da subrotina --------   
+    mov esp, ebp
+    pop ebp
+    ret 8 ; desimpilha os dois parametros
+    
+
+; Recebe e trata entrada do console, devolvendo um inteiro em EAX --------
+; param: offset string, string size
+; Nota: modifica registradores EAX e ESI
+_ReadInteger:
     ;Prologo da subrotina --------
     push ebp
     mov ebp, esp
@@ -63,46 +110,40 @@ _RequestInteger:
     ret
     
 start:
-    ;CONFIGURANDO STREAMS -----
-    invoke GetStdHandle, STD_INPUT_HANDLE
-    mov inputHandle, eax
-    invoke GetStdHandle, STD_OUTPUT_HANDLE
-    mov outputHandle, eax  
-    ; -------------
+    call _SetupIO
 
     ;Solicita nome do arquivo -----------------
         ;---- Printa mensagem ----
-        invoke StrLen, addr msg_nome_arquivo
-        invoke WriteConsole, outputHandle, addr msg_nome_arquivo, eax, addr console_write_count, NULL
+        push offset CONSOLE_MSG_NOME_ARQUIVO
+        call _LogMessage
 
         ;---- Aguarda e trata entrada ----
-        invoke ReadConsole, inputHandle, addr nome_do_arquivo, sizeof nome_do_arquivo, addr console_count, NULL
-        push offset nome_do_arquivo
-        call _RemoveCarriageReturn
+        push sizeof buffer_NomeDoArquivo
+        push offset buffer_NomeDoArquivo
+        call _ReadString
 
     ;Solicitar o index da cor ------------------
         ;---- Printa mensagem ----
-        invoke StrLen, addr msg_index_cor
-        invoke WriteConsole, outputHandle, addr msg_index_cor, eax, addr console_write_count, NULL
+        push offset CONSOLE_MSG_INDEX_COR
+        call _LogMessage
 
         ;---- Aguarda e trata entrada ----
-        call _RequestInteger
+        call _ReadInteger
         mov index_selecionado, eax
 
     ;Solicitar valor para adicionar ------------
         ;---- Printa mensagem ----
-        invoke StrLen, addr msg_qtd_add
-        invoke WriteConsole, outputHandle, addr msg_qtd_add, eax, addr console_write_count, NULL
+        push offset CONSOLE_MSG_QTD_ADD
+        call _LogMessage
 
         ;---- Aguarda e trata entrada ----
-        call _RequestInteger
+        call _ReadInteger
         mov valor_para_adicionar, eax
 
 
     ;Escrevendo strings --------------
-    INVOKE StrLen, addr nome_do_arquivo
-    MOV tamanho_out_string, eax
-    INVOKE WriteConsole, outputHandle, addr nome_do_arquivo, tamanho_out_string, addr console_count, NULL
+    INVOKE StrLen, addr buffer_NomeDoArquivo
+    INVOKE WriteConsole, outputHandle, addr buffer_NomeDoArquivo, eax, addr console_count, NULL
 
     mov eax, index_selecionado
     invoke dwtoa, eax, addr inputInteger
@@ -114,6 +155,7 @@ start:
     INVOKE StrLen, addr inputInteger
     INVOKE WriteConsole, outputHandle, addr inputInteger, eax, addr console_count, NULL
     ;----------------------------
+
 
     INVOKE ExitProcess, 0
 end start
