@@ -5,11 +5,8 @@ option casemap :none
 include \masm32\include\windows.inc
 include \masm32\include\kernel32.inc
 include \masm32\include\masm32.inc
-include \masm32\include\msvcrt.inc
 includelib \masm32\lib\kernel32.lib
 includelib \masm32\lib\masm32.lib
-includelib \masm32\lib\msvcrt.lib
-include \masm32\macros\macros.asm
 
 ;Bibliotecas criadas 
 include clamp.inc
@@ -267,7 +264,6 @@ start:
     mov copy_fileHandle, eax
   
     call _CopyFirst54Bytes
-    printf("\n\ndepois: %d\n\n", value_to_add)   
 
     push offset bgr_color_buffer
     push color_index
