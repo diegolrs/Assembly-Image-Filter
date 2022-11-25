@@ -1,21 +1,13 @@
-
 ;-------------------------
-;   Criado para facilitar os comandos de entrada e saida
-;-------------------------
-
-;include \masm32\include\windows.inc
-;include \masm32\include\kernel32.inc
-;include \masm32\include\masm32.inc
-;includelib \masm32\lib\kernel32.lib
-;includelib \masm32\lib\masm32.lib 
+; Biblioteca criada para facilitar os comandos de entrada e saida
 
 include remove-cr.inc
 
 .data
 ;Console variables -------
-inputInteger db 50 dup(0)
+inputInteger db 50 dup(0) ; Variavel de buffer para receber numeros inteiros via console
 console_write_count dd 0 ; Variavel para armazenar caracteres lidos/escritos na console
-write_count dd 0; Variavel para armazenar caracteres escritos na console
+write_count dd 0 ; Variavel para armazenar caracteres escritos na console
 
 ;Console handlers ----
 inputHandle dd 0 ; Variavel para armazenar o handle de entrada
@@ -23,6 +15,9 @@ outputHandle dd 0 ; Variavel para armazenar o handle de saida
 console_count dd 0 ; Variavel para armazenar caracteres lidos/escritos na console
 
 .code
+
+; Inicializa handlers de entrada e saida para fazer uso das funcoes da MyIO ----
+; Nota: modifica registrador EAX
 _MyIO_Setup PROC
     ;Prologo da subrotina --------
     push ebp
@@ -64,8 +59,8 @@ _MyIO_LogMessage PROC
 _MyIO_LogMessage ENDP
 
 
-; Recebe e trata entrada do console --------
-; param: offset string, string size
+; Recebe e trata entrada do console, alterando valor da string passada --------
+; param: sizeof string, offset string
 ; Nota: modifica registradores EAX e ESI
 _MyIO_ReadString PROC
     ;Prologo da subrotina --------
@@ -86,8 +81,8 @@ _MyIO_ReadString ENDP
     
 
 ; Recebe e trata entrada do console, devolvendo um inteiro em EAX --------
-; param: offset string, string size
 ; Nota: modifica registradores EAX e ESI
+; return: retorna um inteiro no registrador EAX
 _MyIO_ReadInteger PROC
     ;Prologo da subrotina --------
     push ebp

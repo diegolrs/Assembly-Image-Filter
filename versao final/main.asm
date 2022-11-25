@@ -1,3 +1,6 @@
+; Aluno: Diego Luis Reis da Silva
+; Matricula: 20210114719
+
 .686
 .model flat, stdcall
 option casemap :none
@@ -28,13 +31,13 @@ include myIO.inc
     bgr_color_buffer byte 3 DUP(0)
     
     ;Core variables
-    color_index dd 1H
-    value_to_add dd 0H
-    copy_name db 50 dup(0)
-    originalfile_name db 50 dup(0)
+    color_index dd 1H ; index para alterar
+    value_to_add dd 0H ; valor para adicionar
+    copy_name db 50 dup(0) ; nome do novo arquivo copia
+    originalfile_name db 50 dup(0) ; nome do arquivo original
 
 .code   
-    ;Copia primeiros 54 bytes da imagem
+    ;Copia primeiros 54 bytes da imagem original para a copia
     _CopyFirst54Bytes:
         ;Prologo da subrotina --------
         push ebp
@@ -44,50 +47,50 @@ include myIO.inc
         invoke ReadFile, original_fileHandle, addr original_fileBuffer, 54, addr original_readCount, NULL 
 
         ;Escreve buffer lido no arquivo copia
-        invoke WriteFile, copy_fileHandle, addr original_fileBuffer, 54, addr copy_writeCount, NULL ; Escreve buffer_size bytes do arquivo
+        invoke WriteFile, copy_fileHandle, addr original_fileBuffer, 54, addr copy_writeCount, NULL ; Escreve os 54 bytes do arquivo
 
         ;Epilogo da subrotina --------
         mov esp, ebp
         pop ebp
-        ret; return void
+        ret
 
 
-    ;Filtra pixel
-    ;params: endereço brg, index da banda para operar, valor a adicionar
+    ;Filtra pixel adicionando valor a uma das bandas de cor
+    ;params: endereço do array BGR, index da banda para operar, valor a adicionar
+    ;Nota: modifica os registradores EAX, ECX e EDX
     _FilterPixel:
         ;Prologo da subrotina --------
         push ebp
         mov ebp, esp
         sub esp, 12
 
-        ;x = valor a adicionar
+        ;valor a adicionar
         mov eax, DWORD PTR[ebp+8]
         mov DWORD PTR[ebp-4], eax
 
-        ;y = index para operar
+        ;index para operar
         mov eax, DWORD PTR[ebp+12]
         mov DWORD PTR[ebp-8], eax
 
-        ;z = endereço brg
+        ;endereço do array BGR
         mov eax, DWORD PTR[ebp+16]
         mov DWORD PTR[ebp-12], eax
         mov ecx, DWORD PTR[ebp-12]
 
-        ;R Value
+        ;Banda R
         mov eax, [ecx][2]
         push eax
 
-        ;G Value
+        ;Banda G
         mov eax, [ecx][1]
         push eax
 
-        ;B Value
+        ;Banda B
         mov eax, [ecx][0]
         push eax
 
 
         ;----- Pegando valor na banda (index) desejada -------
-
         cmp DWORD PTR[ebp-8], 0 
         je _FilterPixel_AddValue ; quando index == 0, nao precisa configurar nada, pois valor do index zero ja esta em eax
         cmp DWORD PTR[ebp-8], 1
@@ -103,21 +106,21 @@ include myIO.inc
             mov eax, [ecx][2]
             jmp _FilterPixel_AddValue
 
-        ; Soma valor e depois clampa entre [0, 255] -----------
+        ;Soma valor na banda escolhida
         _FilterPixel_AddValue:
             xor ah, ah ; ah = 0
             add eax, DWORD PTR[ebp-4]
 
+        ;Clampa valor somado no intervalo [0, 255] -----------
         _FilterPixel_Clamp:
-            ;Clamp color
             push eax
             call _Clamp
             mov edx, eax
 
-        ;----------- Pegando valor no endereco e modificando --------------
+        ;----------- Filtrando imagem adicionando valor na banda de cor escolhida --------------
         cmp DWORD PTR[ebp-8], 0
         je Filter_Blue
-        cmp DWORD PTR[ebp-8], 1 ; Comparando index para saber qual cor filtrar
+        cmp DWORD PTR[ebp-8], 1 ; 
         je Filter_Green
         cmp DWORD PTR[ebp-8], 2 ; 
         jmp Filter_Red
@@ -149,12 +152,12 @@ include myIO.inc
         ;-------------------------------------------------------------------
         
         _FilterPixel_Return:
-        ;Epilogo da subrotina --------
-        mov esp, ebp
-        pop ebp
-        ret 12; remove parametros da função
+            ;Epilogo da subrotina --------
+            mov esp, ebp
+            pop ebp
+            ret 12; remove parametros da funcao
 
-    ;Filtra a imagem, aplicando a logica em cada pixel
+    ;Filtra a imagem, aplicando a logica do filtro em cada pixel
     _FilterImage:
         ;Prologo da subrotina --------
         push ebp
@@ -174,19 +177,17 @@ include myIO.inc
         mov DWORD PTR[ebp-12], eax
               
         _FilterImage_Loop:
-            invoke ReadFile, original_fileHandle, addr bgr_color_buffer, 3, addr original_readCount, NULL ;Ler banda BGR
+            ;Le pixel BGR
+            invoke ReadFile, original_fileHandle, addr bgr_color_buffer, 3, addr original_readCount, NULL
 
-            ;push offset bgr_color_buffer; DWORD PTR[ebp-12] ; endereco
-            ;push 0 ; index
-            ;push value_to_add ; valor
-            ;call _FilterPixel
-
+            ;Filtra pixel lido
             push DWORD PTR[ebp-12] ; endereco array BGR
             push DWORD PTR[ebp-8] ; index
             push DWORD PTR[ebp-4] ; valor pra add
             call _FilterPixel
-             
-            invoke WriteFile, copy_fileHandle, addr bgr_color_buffer, 3, addr copy_writeCount, NULL ; Escreve banda BGR no arquivo         
+
+            ;Escreve pixel BGR no arquivo 
+            invoke WriteFile, copy_fileHandle, addr bgr_color_buffer, 3, addr copy_writeCount, NULL        
 
             ;Verifica EOF ---------
             cmp original_readCount, 0
@@ -205,8 +206,6 @@ include myIO.inc
         ;Prologo da subrotina --------
         push ebp
         mov ebp, esp
-              
-        call _MyIO_Setup ; Setup dos handler de entrada e saida do console
         
         ;Solicita nome do arquivo original -----------------
             ;---- Printa mensagem ----
@@ -253,6 +252,7 @@ include myIO.inc
 
         
 start:
+    call _MyIO_Setup ; Setup dos handler de entrada e saida do console
     call _ReadInputs ; Recebe e trata as entradas, salvando-as na memoria
 
     ; Abre foto original e depois solicita modo leitura ----------
@@ -262,18 +262,18 @@ start:
     ; Abre foto copia e solicita modo escrever ----------
     invoke CreateFile, addr copy_name, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL
     mov copy_fileHandle, eax
-  
+
+    ;Copia primeiros 54 bytes da imagem
     call _CopyFirst54Bytes
 
+    ;Filtra os bytes de cor BGR imagem
     push offset bgr_color_buffer
     push color_index
     push value_to_add  
-
     call _FilterImage
-
-    _Exit_Program:
-        ; Fecha os arquivos
-        invoke CloseHandle, original_fileHandle
-        invoke CloseHandle, copy_fileHandle    
-        invoke ExitProcess, 0
+    
+    ;Fecha os arquivos e encerra o programa
+    invoke CloseHandle, original_fileHandle
+    invoke CloseHandle, copy_fileHandle    
+    invoke ExitProcess, 0
 end start

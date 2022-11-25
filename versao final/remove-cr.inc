@@ -1,5 +1,5 @@
-; RETIRANDO CARRIAGE RETURN (CR, ENTER)
-; parametro: offset de uma string a ser tratada
+; Retirando Carriage Return (CR, Enter)
+; params: offset de uma string a ser tratada
 .code
 _RemoveCarriageReturn PROC
     ;Prologo da subrotina --------

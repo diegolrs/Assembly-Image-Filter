@@ -1,5 +1,6 @@
 ;--------------------------
 ; Clampa cor para nao passar de 255
+; params: valor a ser clampado
 ; Nota: o valor clampado eh salvo no registrador EAX
 .code
 _Clamp PROC
